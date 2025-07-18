@@ -2,7 +2,7 @@ use std::io;
 use rand::seq::SliceRandom;
 use std::collections::HashSet;
 
-use crate::cards::Cards;
+use crate::cards::{CardsEnum, CardsStruct};
 
 pub mod cards;
 
@@ -16,7 +16,7 @@ fn version_r() {
     let chosen = select_two_cards(&mut deck);
     match (chosen.first(), chosen.last()) {
         (Some(a), Some(b)) => {
-            println!("{}: {:#?} & {:#?}", win_condition(a, b), a, b);
+            println!("{}: {} & {}", win_condition(a, b), a, b);
         },
         (_, _) => {}
     }
@@ -25,10 +25,15 @@ fn version_r() {
     };
 }
 
-fn prepare_deck(version_y: bool) -> Vec<Cards> {
-    let mut cards = vec![Cards::AceSpade, Cards::AceClub, Cards::AceHeart, Cards::AceDiamond];
+fn prepare_deck(version_y: bool) -> Vec<CardsStruct> {
+    let mut cards = vec![
+        CardsStruct::new(CardsEnum::AceClub),
+        CardsStruct::new(CardsEnum::AceDiamond),
+        CardsStruct::new(CardsEnum::AceHeart),
+        CardsStruct::new(CardsEnum::AceSpade)
+    ];
     if version_y {
-        cards.push(Cards::Joker);
+        cards.push(CardsStruct::new(CardsEnum::Joker));
     }
     let mut rng = rand::rng();
     cards.shuffle(&mut rng);
@@ -36,9 +41,9 @@ fn prepare_deck(version_y: bool) -> Vec<Cards> {
 }
 
 
-fn select_two_cards(deck: &mut Vec<Cards>) -> Vec<&Cards> {
+fn select_two_cards(deck: &mut Vec<CardsStruct>) -> Vec<&CardsStruct> {
   let mut buffer = String::new();
-  let mut selections: Vec<&Cards> = vec![];
+  let mut selections: Vec<&CardsStruct> = vec![];
   let mut input_set: HashSet<usize> = HashSet::new();
   // init attempt to get inputs
   println!("Enter 2 non-identical numbers from 1 to {}, separated by a space:", deck.len());
@@ -111,6 +116,6 @@ fn play_again() -> bool {
     }
 }
 
-fn win_condition(a: &Cards, b: &Cards) -> bool {
+fn win_condition(a: &CardsStruct, b: &CardsStruct) -> bool {
     a.color() == b.color()
 }
