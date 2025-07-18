@@ -50,6 +50,14 @@ impl CardsStruct {
         self.suit.color()
     }
 
+    pub fn select(&mut self) {
+        self.selected = true;
+    }
+
+    pub fn is_selected(&self) -> bool {
+        self.selected
+    }
+
     pub fn is_joker(&self) -> bool {
         self.suit.color() == String::from("Joker")
     }
