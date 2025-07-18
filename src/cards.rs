@@ -1,6 +1,6 @@
-use std::fmt::{Display, Formatter, Result};
+use std::{collections::HashSet, fmt::{Display, Formatter, Result}};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum CardsEnum {
     AceSpade,
     AceClub,
@@ -32,7 +32,7 @@ impl Display for CardsEnum {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CardsStruct {
     pub suit: CardsEnum,
     pub selected: bool
@@ -48,6 +48,26 @@ impl CardsStruct {
 
     pub fn color(&self) -> String {
         self.suit.color()
+    }
+
+    pub fn is_joker(&self) -> bool {
+        self.suit.color() == String::from("Joker")
+    }
+
+    pub fn vec_contains_joker(cards: &Vec<CardsStruct>) -> bool {
+        cards.iter().any(|card| card.is_joker())
+    }
+
+    pub fn vec_has_pair(cards: &Vec<CardsStruct>) -> bool {
+        /* 
+        for each elem in cards:
+        - create a hashset (no duplicates) containing their color values
+        - hashset.len < cards.len only if colors match
+        */
+        cards.iter()
+        .map(|card| card.color())
+        .collect::<HashSet<String>>()
+        .len() < cards.len()
     }
 }
 
