@@ -2,7 +2,7 @@ use std::io;
 
 use rand::seq::IndexedRandom;
 
-use crate::{cards::CardsStruct, shared_logic::{game_start, play_again, prepare_deck}, winner::Winner};
+use crate::{models::cards::CardsStruct, controllers::shared_logic::{game_start, play_again, prepare_deck}, models::winner::Winner};
 
 pub fn version_y() {
     let mut deck = prepare_deck(true);

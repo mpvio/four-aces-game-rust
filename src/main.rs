@@ -1,14 +1,13 @@
-use crate::shared_logic::game_start;
+use crate::controllers::shared_logic::{game_start, game_start_ui};
 
-pub mod cards;
-pub mod winner;
-pub mod shared_logic;
-pub mod version_r_logic;
-pub mod version_y_logic;
+pub mod models;
+pub mod controllers;
+pub mod view;
 
 fn main() {
     rules();
-    game_start();
+    //game_start();
+    game_start_ui();
 }
 
 fn rules() {

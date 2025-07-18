@@ -54,6 +54,10 @@ impl CardsStruct {
         self.selected = true;
     }
 
+    pub fn deselect(&mut self) {
+        self.selected = false;
+    }
+
     pub fn is_selected(&self) -> bool {
         self.selected
     }
@@ -76,6 +80,14 @@ impl CardsStruct {
         .map(|card| card.color())
         .collect::<HashSet<String>>()
         .len() < cards.len()
+    }
+
+    pub fn vec_to_string(cards: &Vec<CardsStruct>) -> String {
+        let mut output = String::new();
+        for card in cards {
+            output.push_str(&format!("{} ", card));
+        }
+        String::from(output.trim())
     }
 }
 

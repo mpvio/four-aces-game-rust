@@ -1,6 +1,6 @@
 use std::{collections::HashSet, io};
 
-use crate::{cards::CardsStruct, shared_logic::{game_start, play_again, prepare_deck}};
+use crate::{models::cards::CardsStruct, controllers::shared_logic::{game_start, play_again, prepare_deck}};
 
 pub fn version_r() {
     let mut deck = prepare_deck(false);

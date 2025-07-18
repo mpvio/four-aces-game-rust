@@ -2,7 +2,17 @@ use std::io;
 
 use rand::seq::SliceRandom;
 
-use crate::{cards::{CardsEnum, CardsStruct}, version_r_logic::version_r, version_y_logic::version_y};
+use crate::{controllers::{version_r_logic::version_r, version_y_logic::version_y}, models::cards::{CardsEnum, CardsStruct}, view::game_ui::GameUI};
+
+pub fn game_start_ui() {
+    let app = GameUI::new();
+    let options = eframe::NativeOptions::default();
+    eframe::run_native(
+        "Four Aces", 
+        options, 
+        Box::new(|_cc| Ok(Box::new(app)))
+    ).unwrap();
+}
 
 pub fn game_start() {
     let play_version_y = choose_version();
