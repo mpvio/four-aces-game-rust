@@ -1,24 +1,10 @@
 use std::io;
 use rand::seq::SliceRandom;
+use std::collections::HashSet;
 
-#[derive(Debug)]
-pub enum Cards {
-    AceSpade,
-    AceClub,
-    AceHeart,
-    AceDiamond,
-    Joker
-}
+use crate::cards::Cards;
 
-impl Cards {
-    pub fn color(&self) -> String {
-        match self {
-            Cards::AceSpade | Cards::AceClub => String::from("Black"),
-            Cards::AceHeart | Cards::AceDiamond => String::from("Red"),
-            Cards::Joker => String::from("Joker"),
-        }
-    }
-}
+pub mod cards;
 
 fn main() {
     println!("Hello, world!");
@@ -27,7 +13,7 @@ fn main() {
 
 fn version_r() {
     let mut deck = prepare_deck(false);
-    let chosen = select_cards(&mut deck);
+    let chosen = select_two_cards(&mut deck);
     match (chosen.first(), chosen.last()) {
         (Some(a), Some(b)) => {
             println!("{}: {:#?} & {:#?}", win_condition(a, b), a, b);
@@ -49,10 +35,13 @@ fn prepare_deck(version_y: bool) -> Vec<Cards> {
     return cards;
 }
 
-fn select_cards(deck: &mut Vec<Cards>) -> Vec<&Cards> {
+
+fn select_two_cards(deck: &mut Vec<Cards>) -> Vec<&Cards> {
   let mut buffer = String::new();
   let mut selections: Vec<&Cards> = vec![];
-  println!("Enter two numbers from 1 to {}, separated by a space:", deck.len());
+  let mut input_set: HashSet<usize> = HashSet::new();
+  // init attempt to get inputs
+  println!("Enter 2 non-identical numbers from 1 to {}, separated by a space:", deck.len());
   let stdin = io::stdin();
   let result = match stdin.read_line(&mut buffer) {
     Ok(_) => {
@@ -60,18 +49,48 @@ fn select_cards(deck: &mut Vec<Cards>) -> Vec<&Cards> {
     },
     Err(_) => String::new(),
   };
-  let ls = result.split_ascii_whitespace();
-  for val in ls.into_iter() {
-    match val.parse::<usize>() {
-        Ok(num) => {
-            if let Some(card) = deck.get(num-1) {
-                selections.push(card);
-            };
-        },
-        Err(_) => {
-
-        },
-    };
+  let ls = result.split_ascii_whitespace().collect::<HashSet<&str>>();
+  for val in ls {
+    if let Ok(num) = val.parse::<usize>() {
+        //print!("{num}: ");
+        if num >= 1 && num <= deck.len() {
+            input_set.insert(num);
+            //println!("added.")
+        } else {
+            //println!("refused.")
+        }
+    }
+  }
+  // less than 2 valid values entered
+  while input_set.len() < 2 {
+    println!("Enter {} non-identical numbers from 1 to {}, separated by a space. Currently selected: {:?}", 2-input_set.len(), deck.len(), input_set);
+    buffer.clear();
+        match stdin.read_line(&mut buffer) {
+            Ok(_) => {
+                buffer.trim().to_string()
+            },
+            Err(_) => String::new(),
+        };
+        for val in buffer.trim().split_ascii_whitespace() {
+            if let Ok(num) = val.parse::<usize>() {
+                //print!("{num}: ");
+                if num >= 1 && num <= deck.len() {
+                    input_set.insert(num);
+                    //println!("added.")
+                }else {
+                    //println!("refused.")
+                }
+            }
+        }
+  }
+  if input_set.len() > 2 {
+    println!("Only first two values will be accepted.")
+  }
+  // convert numbers to cards
+  for val in input_set {
+    if let Some(card) = deck.get(val-1) {
+        selections.push(card);
+    }
   }
   selections
   
