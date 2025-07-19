@@ -1,6 +1,6 @@
 use std::{collections::HashSet, io};
 
-use crate::{models::cards::CardsStruct, controllers::shared_logic::{game_start, play_again, prepare_deck}};
+use crate::{models::cards::CardsStruct, controllers::shared_logic::{game_start_non_ui, play_again, prepare_deck}};
 
 pub fn version_r() {
     let mut deck = prepare_deck(false);
@@ -12,7 +12,7 @@ pub fn version_r() {
         (_, _) => {}
     }
     if play_again() {
-        game_start();
+        game_start_non_ui();
     };
 }
 

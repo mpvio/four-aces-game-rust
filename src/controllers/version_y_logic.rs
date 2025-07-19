@@ -2,7 +2,7 @@ use std::io;
 
 use rand::seq::IndexedRandom;
 
-use crate::{models::cards::CardsStruct, controllers::shared_logic::{game_start, play_again, prepare_deck}, models::winner::Winner};
+use crate::{models::cards::CardsStruct, controllers::shared_logic::{game_start_non_ui, play_again, prepare_deck}, models::winner::Winner};
 
 pub fn version_y() {
     let mut deck = prepare_deck(true);
@@ -60,7 +60,7 @@ pub fn version_y() {
     print_cards(&opp_cards);
 
     if play_again() {
-        game_start();
+        game_start_non_ui();
     }
 
 }

@@ -1,7 +1,5 @@
-use std::default;
-
-use eframe::Frame;
 use egui::{Button, CentralPanel, Color32, Id, Response, Sense, Stroke, Ui};
+use rand::seq::IndexedRandom;
 
 use crate::{controllers::shared_logic::prepare_deck, models::{cards::CardsStruct, winner::Winner}};
 
@@ -89,54 +87,89 @@ pub fn display_game(
 
             if version {
                 // 5 card unique logic
-                // track if turn is done
-                let (mut selected_indices, confirm_button, restart_button) = display_card_selection(
-                    ui, 
-                    &deck_ref, 
-                    max_card_selections, 
-                    Id::new("selected_cards"), 
-                    winner, 
-                    *player_turn,
-                    player_cards,
-                    opp_cards
-                );
+                ui.label(format!("Current turn: {}", if *player_turn { "Player" } else { "AI" }));
 
-                if confirm_button.clicked() && selected_indices.len() == 1 {
-                    for &idx in &selected_indices {
-                        deck_ref[idx].select();
-                        player_cards.push(deck_ref[idx].clone());
+                if *player_turn {
+                    // human's turn
+                    let (selected_indices, confirm_button, restart_button) = display_card_selection(
+                        ui, 
+                        &deck_ref, 
+                        max_card_selections, 
+                        Id::new("selected_cards"), 
+                        winner, 
+                        *player_turn,
+                        player_cards,
+                        opp_cards
+                    );
+
+                    if confirm_button.clicked() && selected_indices.len() == 1 {
+                        for &idx in &selected_indices {
+                            deck_ref[idx].select();
+                            player_cards.push(deck_ref[idx].clone());
+                            // check if joker
+                            if deck_ref[idx].is_joker() {
+                                *winner = Winner::Player2;
+                            }
+                        }
+
+                        // clear selected_indices
+                        ui.memory_mut(|mem| mem.data.insert_temp(Id::new("selected_cards"), Vec::<usize>::new()));
+
+                        // start ai turn
+                        *player_turn = false;
+                    }
+
+                    // restart game logic
+                    if restart_button.clicked() {
+                        reset_game_state(
+                            version_y,
+                            deck,
+                            player_cards,
+                            opp_cards,
+                            player_turn,
+                            winner,
+                            ui
+                        );
+                    }
+                } else {
+                    // ai's turn
+                    // get only the cards that haven't been selected yet
+                    let available_cards: Vec<usize> = deck_ref.iter()
+                        .enumerate()
+                        .filter(|(_, card)| !card.is_selected())
+                        .map(|(i, _)| i)
+                        .collect();
+
+                    if available_cards.len() > 1 {
+                        // select a card if possible
+                        let ai_choice = available_cards.choose(&mut rand::rng()).unwrap();
+                        // get and process card
+                        deck_ref[*ai_choice].select();
+                        opp_cards.push(deck_ref[*ai_choice].clone());
                         // check if joker
-                        if deck_ref[idx].is_joker() {
-                            *winner = Winner::Player2;
-                            
+                        if deck_ref[*ai_choice].is_joker() {
+                            *winner = Winner::Player1;
                         }
                     }
 
-                    // clear selected_indices
-                    ui.memory_mut(|mem| mem.data.insert_temp(Id::new("selected_cards"), Vec::<usize>::new()));
-
-                }
-
-                // restart game logic
-                if restart_button.clicked() {
-                    // Reset all game states
-                    *version_y = None;
-                    *deck = None;
-                    player_cards.clear();
-                    opp_cards.clear();
+                    // revert to player's turn
                     *player_turn = true;
-                    *winner = Winner::None;
-                    
-                    // Clear UI memory states
-                    ui.memory_mut(|mem| {
-                        mem.data.remove_temp::<Option<bool>>(Id::new("version_selection"));
-                        mem.data.remove_temp::<Vec<usize>>(Id::new("selected_cards"));
-                    });
                 }
 
-                // output
-                ui.label(format!("Player 1's cards: {:?}", CardsStruct::vec_to_string(&player_cards)));
-                ui.label(format!("Player 2's cards: {:?}", CardsStruct::vec_to_string(&opp_cards)));
+                // five card output
+                ui.separator();
+                ui.label(format!("Player 1's cards: {:?}", if player_cards.is_empty() { String::from("None") } else {CardsStruct::vec_to_string(&player_cards)}));
+                ui.label(format!("Player 2's cards: {:?}", if opp_cards.is_empty() { String::from("None") } else {CardsStruct::vec_to_string(&opp_cards)}));
+                match *winner {
+                    Winner::Player1 => {ui.label("Player 1 wins!");},
+                    Winner::Player2 => {ui.label("Player 2 wins!");},
+                    Winner::None => {
+                        // game is ongoing UNLESS four cards have been selected
+                        if player_cards.len() == 2 && opp_cards.len() == 2 {
+                            ui.label("DRAW!");
+                        }
+                    },
+                }
             } else {
                 // 4 card unique logic
                 let allow_interaction = player_cards.len() != 2;
@@ -161,22 +194,19 @@ pub fn display_game(
                
                 // restart game logic
                 if restart_button.clicked() {
-                    // Reset all game state
-                    *version_y = None;
-                    *deck = None;
-                    player_cards.clear();
-                    opp_cards.clear();
-                    *player_turn = true;
-                    *winner = Winner::None;
-                    
-                    // Clear UI memory states
-                    ui.memory_mut(|mem| {
-                        mem.data.remove_temp::<Option<bool>>(Id::new("version_selection"));
-                        mem.data.remove_temp::<Vec<usize>>(Id::new("selected_cards"));
-                    });
+                    reset_game_state(
+                        version_y,
+                        deck,
+                        player_cards,
+                        opp_cards,
+                        player_turn,
+                        winner,
+                        ui
+                    );
                 }
 
-                // four aces version
+                // four aces output
+                ui.separator();
                 if player_cards.len() == 2 {
                     let result =  if CardsStruct::vec_has_pair(&player_cards) {
                         *winner = Winner::Player1;
@@ -185,12 +215,15 @@ pub fn display_game(
                         *winner = Winner::Player2;
                         String::from("lose")
                     };
-                    ui.label(format!("4: You {}! Your cards: {:?}", result, CardsStruct::vec_to_string(player_cards)));
+                    ui.label(format!("You {}! Your cards: {:?}", result, CardsStruct::vec_to_string(player_cards)));
                 } else {
-                    ui.label(format!("4: {:?}", CardsStruct::vec_to_string(player_cards)));
+                    ui.label("Your chosen cards will be displayed here.");
                 }
             }
         }
+        // insert instructions
+        ui.separator();
+        let _instructions = display_instructions(ui, version_y);
     });
 
 }
@@ -289,4 +322,56 @@ fn display_card_selection(
     ui.memory_mut(|mem| mem.data.insert_temp(memory_id, selected_indices.clone()));
 
     (selected_indices, confirm_button, restart_button)
+}
+
+fn display_instructions(ui: &mut Ui, version_y: &mut Option<bool>) -> Response {
+    let resp = ui.vertical(|ui| {
+        match version_y {
+            Some(version) => {
+                if *version {
+                    // 5 card rules
+                        ui.label("Four Ace Cards and a Joker are laid face down before you.");
+                        ui.label("You and your opponent take turns choosing one card each.");
+                        ui.label("The winner is the first to pick two cards of the same color (Red/ Black).");
+                        ui.label("However! Whoever picks the Joker loses immediately.");
+                        ui.label("If there is only one card left to pick, the game ends in a DRAW.");
+                } else {
+                    // 4 card rules
+                        ui.label("Four Ace Cards are laid before you, face down. Choose two of them at once.");
+                        ui.label("You win if both are the same color (Red/ Black). Otherwise, you lose.");
+                }
+            },
+            None => {
+                    ui.label("Welcome!");
+                    ui.label("Choose which version of the game you want to play.");
+                    ui.label("Version specific rules will be displayed here once you do.");
+            }
+        }
+        ui.label("Have fun!");
+    }).response;
+    return resp;
+}
+
+fn reset_game_state(
+    version_y: &mut Option<bool>,
+    deck: &mut Option<Vec<CardsStruct>>,
+    player_cards: &mut Vec<CardsStruct>,
+    opp_cards: &mut Vec<CardsStruct>,
+    player_turn: &mut bool,
+    winner: &mut Winner,
+    ui: &mut Ui
+) {
+    // Reset game state
+    *version_y = None;
+    *deck = None;
+    player_cards.clear();
+    opp_cards.clear();
+    *player_turn = true;
+    *winner = Winner::None;
+    
+    // Clear UI memory
+    ui.memory_mut(|mem| {
+        mem.data.remove_temp::<Option<bool>>(Id::new("version_selection"));
+        mem.data.remove_temp::<Vec<usize>>(Id::new("selected_cards"));
+    });
 }
