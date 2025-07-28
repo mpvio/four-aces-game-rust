@@ -50,7 +50,7 @@ pub fn display_game(
     player_cards: &mut Vec<CardsStruct>,
     opp_cards: &mut Vec<CardsStruct>,
     player_turn: &mut bool,
-    winner: &mut Winner
+    mut winner: &mut Winner
 ) {
     ui.vertical(|ui| {
         if version_y.is_none() {
@@ -89,71 +89,74 @@ pub fn display_game(
                 // 5 card unique logic
                 ui.label(format!("Current turn: {}", if *player_turn { "Player" } else { "AI" }));
 
-                if *player_turn {
-                    // human's turn
-                    let (selected_indices, confirm_button, restart_button) = display_card_selection(
-                        ui, 
-                        &deck_ref, 
-                        max_card_selections, 
-                        Id::new("selected_cards"), 
-                        winner, 
-                        *player_turn,
-                        player_cards,
-                        opp_cards
-                    );
+                let game_ended = five_card_game_over(player_cards, opp_cards, winner);
 
-                    if confirm_button.clicked() && selected_indices.len() == 1 {
-                        for &idx in &selected_indices {
-                            deck_ref[idx].select();
-                            player_cards.push(deck_ref[idx].clone());
-                            // check if joker
-                            if deck_ref[idx].is_joker() {
-                                *winner = Winner::Player2;
+                // set up components
+                let (selected_indices, confirm_button, restart_button) = display_card_selection(
+                    ui, 
+                    &deck_ref, 
+                    max_card_selections, 
+                    Id::new("selected_cards"), 
+                    winner, 
+                    *player_turn,
+                    player_cards,
+                    opp_cards
+                );
+
+                // only play if game is ongoing
+                if !game_ended {
+                    if *player_turn {
+                        // human's turn
+                        if confirm_button.clicked() && selected_indices.len() == 1 {
+                            for &idx in &selected_indices {
+                                deck_ref[idx].select();
+                                player_cards.push(deck_ref[idx].clone());
+                                // check if game ended, else change turn
+                                if five_card_game_over(player_cards, opp_cards, winner) {
+                                    break;
+                                } else {
+                                    *player_turn = false;
+                                }
+                            }
+
+                            // clear selected_indices
+                            ui.memory_mut(|mem| mem.data.insert_temp(Id::new("selected_cards"), Vec::<usize>::new()));
+                            
+                        }
+                    } else {
+                        // ai's turn
+                        // get only the cards that haven't been selected yet
+                        let available_cards: Vec<usize> = deck_ref.iter()
+                            .enumerate()
+                            .filter(|(_, card)| !card.is_selected())
+                            .map(|(i, _)| i)
+                            .collect();
+
+                        if available_cards.len() > 1 {
+                            // select a card if possible
+                            let ai_choice = available_cards.choose(&mut rand::rng()).unwrap();
+                            // get and process card
+                            deck_ref[*ai_choice].select();
+                            opp_cards.push(deck_ref[*ai_choice].clone());
+                            // check if game is over, else change turn
+                            if !five_card_game_over(player_cards, opp_cards, winner) {
+                                *player_turn = true;
                             }
                         }
-
-                        // clear selected_indices
-                        ui.memory_mut(|mem| mem.data.insert_temp(Id::new("selected_cards"), Vec::<usize>::new()));
-
-                        // start ai turn
-                        *player_turn = false;
                     }
+                }
 
-                    // restart game logic
-                    if restart_button.clicked() {
-                        reset_game_state(
-                            version_y,
-                            deck,
-                            player_cards,
-                            opp_cards,
-                            player_turn,
-                            winner,
-                            ui
-                        );
-                    }
-                } else {
-                    // ai's turn
-                    // get only the cards that haven't been selected yet
-                    let available_cards: Vec<usize> = deck_ref.iter()
-                        .enumerate()
-                        .filter(|(_, card)| !card.is_selected())
-                        .map(|(i, _)| i)
-                        .collect();
-
-                    if available_cards.len() > 1 {
-                        // select a card if possible
-                        let ai_choice = available_cards.choose(&mut rand::rng()).unwrap();
-                        // get and process card
-                        deck_ref[*ai_choice].select();
-                        opp_cards.push(deck_ref[*ai_choice].clone());
-                        // check if joker
-                        if deck_ref[*ai_choice].is_joker() {
-                            *winner = Winner::Player1;
-                        }
-                    }
-
-                    // revert to player's turn
-                    *player_turn = true;
+                // restart game logic
+                if restart_button.clicked() {
+                    reset_game_state(
+                        version_y,
+                        deck,
+                        player_cards,
+                        opp_cards,
+                        player_turn,
+                        winner,
+                        ui
+                    );
                 }
 
                 // five card output
@@ -178,7 +181,7 @@ pub fn display_game(
                     &deck_ref, 
                     max_card_selections, 
                     Id::new("selected_cards"),
-                    &winner,
+                    &mut winner,
                     allow_interaction,
                     player_cards,
                     opp_cards
@@ -233,7 +236,7 @@ fn display_card_selection(
     deck: &Vec<CardsStruct>,
     max_selections: usize,
     memory_id: Id,
-    winner: &Winner,
+    winner: &mut Winner,
     allow_interaction: bool,
     player_cards: &mut Vec<CardsStruct>,
     opp_cards: &mut Vec<CardsStruct>
@@ -298,20 +301,7 @@ fn display_card_selection(
         //4 cards version
         *winner != Winner::None
     } else {
-        //5 card version
-        if CardsStruct::vec_contains_joker(&player_cards) || CardsStruct::vec_contains_joker(&opp_cards) {
-            // joker ends the game
-            true
-        } else if player_cards.len() == 2 && opp_cards.len() == 2 {
-            // no cards left to draw
-            true
-        }  else if CardsStruct::vec_has_pair(&player_cards) || CardsStruct::vec_has_pair(&opp_cards){
-            // a player won
-            true
-        } else {
-            // game's still going
-            false
-        }
+        five_card_game_over(player_cards, opp_cards, winner)
     };
 
     let restart_button = ui.add_enabled(
@@ -322,6 +312,25 @@ fn display_card_selection(
     ui.memory_mut(|mem| mem.data.insert_temp(memory_id, selected_indices.clone()));
 
     (selected_indices, confirm_button, restart_button)
+}
+
+fn five_card_game_over(
+    player_cards: &mut Vec<CardsStruct>,
+    opp_cards: &mut Vec<CardsStruct>,
+    winner: &mut Winner
+) -> bool {
+    if CardsStruct::vec_contains_joker(&player_cards) || CardsStruct::vec_has_pair(&opp_cards) {
+        *winner = Winner::Player2; // player drew Joker OR opp has valid pair
+        return true;
+    } else if CardsStruct::vec_contains_joker(&opp_cards) || CardsStruct::vec_has_pair(&player_cards) {
+        *winner = Winner::Player1; // opp drew Joker OR player has valid pair
+        return true;
+    } else if player_cards.len() == 2 && opp_cards.len() == 2 {
+        *winner = Winner::None; // no cards left to draw
+        return true;
+    } else {
+        return false;
+    }
 }
 
 fn display_instructions(ui: &mut Ui, version_y: &mut Option<bool>) -> Response {
