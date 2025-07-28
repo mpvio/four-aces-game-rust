@@ -6,7 +6,10 @@ use crate::{controllers::{version_r_logic::version_r, version_y_logic::version_y
 
 pub fn game_start_ui() {
     let app = GameUI::new();
-    let options = eframe::NativeOptions::default();
+    let options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default().with_inner_size([500.0, 300.0]),
+        ..Default::default()
+    };
     eframe::run_native(
         "Four Aces", 
         options, 
